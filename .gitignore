@@ -2,7 +2,8 @@ config/*
 !config/config.default.env
 output/*
 !output/.gitkeep
-
+cards/*
+!cards/default.json
 
 _docs/
 
