@@ -1,0 +1,52 @@
+# Variables ${PINGME_*} are expected to be loaded from ENV vars of equivalent names
+config:
+    email:
+        from: ${PINGME_EMAIL_FROM}
+        to: ${PINGME_EMAIL_TO}
+        cc: ""
+        bcc: ""
+        smtp:
+            user: ${PINGME_EMAIL_SMTP_USER}
+            password: ${PINGME_EMAIL_SMTP_PASSWORD}
+            host: ${PINGME_EMAIL_SMTP_HOST}
+            port: ${PINGME_EMAIL_SMTP_PORT}
+        # Note for emails the body is the payload and a $title from the context is the subject
+    webhook:
+        url: ${PINGME_WEBHOOK_URL}
+    logfile:
+        path: ${PINGME_LOGFILE_PATH}
+# Payload is read in as a JSON, when creating your own the JSON payload from adaptivecards.io can be dropped into the `content` section,
+# vars here are expected to be provided from the code and are labeled ${variable_name}. Only the payload will replace variables named as such.
+# also ensure you have the variables $title and $text included.
+payload:
+    type: object # JSON
+    value: |
+        {
+            "type":"message",
+            "attachments":[
+            {
+                "contentType":"application/vnd.microsoft.card.adaptive",
+                "contentUrl":null,
+                "content":{
+                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                    "type": "AdaptiveCard",
+                    "version": "1.5",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "text": "${title}",
+                            "wrap": true,
+                            "color": "Accent",
+                            "size": "Large"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "${text}",
+                            "wrap": true
+                        }
+                    ]
+                }
+            }
+            ]
+        }
+

@@ -3,7 +3,7 @@ config/*
 output/*
 !output/.gitkeep
 cards/*
-!cards/default.json
+!cards/default.yaml
 
 _docs/
 
