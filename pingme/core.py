@@ -193,13 +193,15 @@ import json
 import sys
 # Ensure settings.ini contains `console_scripts = pingme=pingme.pingme:cli`, this makes the call as `pingme` and calls the cli function found in package pingme.pingme
 @call_parse # https://fastcore.fast.ai/script.html#example
-def cli(#TODO: fix params
-    config_file:str,
-    context:str,
-    send_type:str,
-    card_name:str = "default", # Name of the card which matches a card found in $PROJECTDIR/card_dir/
-    card_dir:str = "./cards/",
-    card_ext:str = ".yaml"
+#TODO: fix params
+def cli(config_file:str, # config file to set env vars from
+        context:str, # string denoting a json object with context variables
+        webhook:bool, # attempts to send to webhook
+        email:bool, # attempts to send to email
+        logfile:bool, # attempts to send to logfile
+        card_name:str="default", # Name of the card which matches a card found in $PROJECTDIR/card_dir/
+        card_dir:str="./cards/", # Directory where cards are stored
+        card_ext:str=".yaml"    # Extension of card files
     ):
     """
     The Command Line Interface (CLI) for the pingme package. This is the main entry point for the package. Currently only allows for a config file to be provided, but can be extended to allow for args. Command line passing is handled with @call_parse decorator.
@@ -209,14 +211,18 @@ def cli(#TODO: fix params
     card = Card(name=card_name, context=context)
     pingme = PingMe(card=card, card_dir=card_dir, card_ext=card_ext)
 
-    if send_type == "webhook":
-        pingme.send_webhook()
-        print("Sent to webhook", file=sys.stderr)
-    if send_type == "email":
-        pingme.send_email()
-        print("Sent to email", file=sys.stderr)
-    if send_type == "logfile":
-        pingme.send_log_file()
-        print("Sent to logfile", file=sys.stderr)
+    if not webhook and not email and not logfile:
+        print("No destination provided, exiting", file=stderr)
+        return False
+    else:
+        if webhook:
+            pingme.send_webhook()
+            print("Sent to webhook", file=sys.stderr)
+        if email:
+            pingme.send_email()
+            print("Sent to email", file=sys.stderr)
+        if logfile:
+            pingme.send_log_file()
+            print("Sent to logfile", file=sys.stderr)
 
     return True
