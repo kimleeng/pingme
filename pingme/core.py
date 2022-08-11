@@ -4,12 +4,12 @@
 __all__ = ['set_env_variables', 'Card', 'PingMe', 'resolved_payload', 'send_to_webhook', 'send_to_email', 'send_to_logfile',
            'cli']
 
-# %% ../00_core.ipynb 9
+# %% ../00_core.ipynb 10
 # Inlcuded libraries, other libraries are included with the methods that use them.
 # FIXME: Currently this is not showing in the docs, currently it seems no librs are
 from fastcore.utils import patch # decorator to patch in new methods to a class
 
-# %% ../00_core.ipynb 14
+# %% ../00_core.ipynb 15
 from dotenv import load_dotenv # for loading config from .env files
 
 def set_env_variables(config_path) -> bool:
@@ -23,17 +23,17 @@ def set_env_variables(config_path) -> bool:
     return True
 
 
-# %% ../00_core.ipynb 15
+# %% ../00_core.ipynb 16
 import os
-set_env_variables(os.environ["PINGME_CONFIG_PATH"])
+set_env_variables(os.environ.get("PINGME_CONFIG_PATH"))
 
-# %% ../00_core.ipynb 23
+# %% ../00_core.ipynb 24
 from pydantic import BaseModel
 class Card(BaseModel):
     name: str
     context: dict
 
-# %% ../00_core.ipynb 25
+# %% ../00_core.ipynb 26
 from pathlib import Path # for type hinting and file checking
 import os
 from envyaml import EnvYAML # Allows to loads env vars into a yaml file, https://github.com/thesimj/envyaml
@@ -60,7 +60,7 @@ class PingMe:
         # Resolve title and text from card.context
         self.title:str = self.card.context.get("title", "")
         self.text:str = self.card.context.get("text", "")
-        # Resolve payload variables from card.context
+        # Resolve payload variables from card.context, defined below
         self.payload:json = resolved_payload(config["payload"]["value"], card.context)
 
     def __str__(self) -> str:
@@ -74,7 +74,7 @@ class PingMe:
     def __repr__(self) -> str:
         return self.__str__()
 
-# %% ../00_core.ipynb 27
+# %% ../00_core.ipynb 28
 import re # regular expression for parsing
 import json # to manage json payloads
 @staticmethod
@@ -94,7 +94,7 @@ def resolved_payload(payload:json, context:dict) -> json:
         raise ValueError("Unresolved variables in payload")
     return json.loads(str_temp)
 
-# %% ../00_core.ipynb 31
+# %% ../00_core.ipynb 32
 import requests # to send requests to webhooks
 @staticmethod
 def send_to_webhook(url:str, payload:json, header:json={'Content-Type': 'application/json'}) -> dict:
@@ -107,12 +107,12 @@ def send_to_webhook(url:str, payload:json, header:json={'Content-Type': 'applica
         raise Exception(f"Error sending message to webhook: {e}")
     return {"status_code": response.status_code, "response": response.text}
 
-# %% ../00_core.ipynb 33
+# %% ../00_core.ipynb 34
 @patch
 def send_webhook(self:PingMe) -> dict:
     return send_to_webhook(self.webhook["url"], self.payload)
 
-# %% ../00_core.ipynb 38
+# %% ../00_core.ipynb 39
 import smtplib # to send emails
 import email.mime.text # to format emails
 
@@ -149,7 +149,7 @@ def send_to_email(payload:json, subject:str, from_:str, to:str, host:str, port:i
         return {"status_code":200, "response":email_status}
 
 
-# %% ../00_core.ipynb 40
+# %% ../00_core.ipynb 41
 @patch
 def send_email(self:PingMe) -> dict:
     return send_to_email(
@@ -162,7 +162,7 @@ def send_email(self:PingMe) -> dict:
         self.email["smtp"]["user"],
         self.email["smtp"]["password"])
 
-# %% ../00_core.ipynb 45
+# %% ../00_core.ipynb 46
 import datetime # to get current date and time which is used in logging
 
 @staticmethod
@@ -179,32 +179,38 @@ def send_to_logfile(logfile:str, title:str, text:str) -> dict:
         f.write("\n")
     return {"status_code":200, "response":True}
 
-# %% ../00_core.ipynb 46
+# %% ../00_core.ipynb 47
 @patch
 def send_logfile(self:PingMe) -> dict:
     return send_to_logfile(self.logfile["path"], self.title, self.text)
 
-# %% ../00_core.ipynb 49
+# %% ../00_core.ipynb 51
 # Make a CLI function using `call_parse` to handle arguments
 from sys import stderr
 from fastcore.script import call_parse
 import distutils.util # to convert string to bool
 import json
 import sys
-# Ensure settings.ini contains `console_scripts = pingme=pingme.pingme:cli`, this makes the call as `pingme` and calls the cli function found in package pingme.pingme
+# Ensure settings.ini contains `console_scripts = pingme=pingmeme:cli`, this makes the call as `pingme` and calls the cli function found in package pingme.pingme
 @call_parse # https://fastcore.fast.ai/script.html#example
-#TODO: fix params
-def cli(config_file:str, # config file to set env vars from
-        context:str, # string denoting a json object with context variables
+def cli(context:str, # string denoting a json object with context variables (e.g. '{"title":"Test Title", "text":"Test Text"}')
         webhook:bool, # attempts to send to webhook
         email:bool, # attempts to send to email
         logfile:bool, # attempts to send to logfile
-        card_name:str="default", # Name of the card which matches a card found in $PROJECTDIR/card_dir/
+        example:bool, # Runs with example params, if it doesn't work config values haven't been set properly
+        config_file:str=None, # config file to set env vars from
+        card_name:str="default", # Name of the card which matches a card found in {PROJECTDIR}/cards/{CARDNAME}.yaml
         card_dir:str="./cards/", # Directory where cards are stored
-        card_ext:str=".yaml"    # Extension of card files
+        card_ext:str=".yaml", # Extension of card files
     ):
     """
-    The Command Line Interface (CLI) for the pingme package. This is the main entry point for the package. Currently only allows for a config file to be provided, but can be extended to allow for args. Command line passing is handled with @call_parse decorator.
+    PingMe send a notification to a webhook, email, or log file.\n\n
+    Usage examples:
+    - basic:
+    pingme --context '{"title":"Test Title", "text":"Test Text"}' --webhook
+    - advanced:
+    pingme --config_file ./config/config.env --context '{"title":"Test Title", "text":"Test Text"}' --webhook --email --logfile --card_name default --card_dir ./cards/ --card_ext .yaml
+    NOTE: Will require use of ./cards/default.yaml and ./config/config.default.env to be set up properly
     """
     set_env_variables(config_file)
     context = json.loads(context)
@@ -222,7 +228,7 @@ def cli(config_file:str, # config file to set env vars from
             pingme.send_email()
             print("Sent to email", file=sys.stderr)
         if logfile:
-            pingme.send_log_file()
+            pingme.send_logfile()
             print("Sent to logfile", file=sys.stderr)
 
     return True
